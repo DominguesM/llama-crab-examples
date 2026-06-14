@@ -19,3 +19,16 @@ target
 #  and can be added to the global gitignore or merged into this file.  For a more nuclear
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
+
+# Downloaded GGUF models and generated fixtures
+models/
+tests/fixtures/*.gguf
+
+# JavaScript/Tauri generated artifacts
+node_modules/
+**/node_modules/
+**/dist/
+tauri-chat-lfm/src-tauri/gen/
+
+# macOS metadata
+.DS_Store

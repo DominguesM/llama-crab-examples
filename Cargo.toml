@@ -1,0 +1,29 @@
+[workspace]
+resolver = "2"
+members = [
+    "quickstart",
+    "stateful_chat",
+    "embedding_search",
+    "simple",
+    "streaming",
+    "chat",
+    "embeddings",
+    "reranker",
+    "speculative",
+    "tools",
+    "structured",
+    "mtmd",
+    "vision",
+    "lfm_vl_vision",
+    "server_lfm",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.88"
+license = "MIT"
+repository = "https://github.com/DominguesM/llama-crab-examples"
+
+[workspace.dependencies]
+llama-crab = { version = "0.1.300", default-features = false, features = ["openmp"] }
