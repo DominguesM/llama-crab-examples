@@ -15,8 +15,8 @@ use anyhow::Result;
 use llama_crab::context::params::PoolingType;
 use llama_crab::{Llama, LlamaParams};
 
-const DEFAULT_HF_REPO: &str = "CompendiumLabs/bge-small-en-v1.5-gguf";
-const DEFAULT_HF_FILE: &str = "bge-small-en-v1.5-q4_k_m.gguf";
+const DEFAULT_HF_REPO: &str = "nomic-ai/nomic-embed-text-v1.5-GGUF";
+const DEFAULT_HF_FILE: &str = "nomic-embed-text-v1.5.Q4_K_M.gguf";
 const DEFAULT_TEXT: &str = "Hello, world!";
 
 fn main() -> Result<()> {
@@ -29,6 +29,8 @@ fn main() -> Result<()> {
     let hf_filename = args.next().unwrap_or_else(|| DEFAULT_HF_FILE.to_string());
     let text = args.next().unwrap_or_else(|| DEFAULT_TEXT.to_string());
 
+    // nomic-embed-text-v1.5 is a BERT-style encoder; CLS pooling
+    // matches its official configuration. Mean pooling also works.
     let mut llama = Llama::load(
         LlamaParams::new(&hf_repo)
             .with_hf_filename(&hf_filename)
@@ -41,10 +43,13 @@ fn main() -> Result<()> {
     let norm = embedding.iter().map(|v| v * v).sum::<f32>().sqrt();
     let preview: Vec<f32> = embedding.iter().copied().take(8).collect();
 
-    println!("text: {text}");
-    println!("tokens: {tokens:?}");
-    println!("embedding_dim: {}", embedding.len());
-    println!("embedding_l2_norm: {norm:.6}");
-    println!("embedding_preview: {preview:.6?}");
+    use std::io::Write;
+    let mut out = std::io::stdout().lock();
+    writeln!(out, "text: {text}")?;
+    writeln!(out, "tokens: {tokens:?}")?;
+    writeln!(out, "embedding_dim: {}", embedding.len())?;
+    writeln!(out, "embedding_l2_norm: {norm:.6}")?;
+    writeln!(out, "embedding_preview: {preview:.6?}")?;
+    out.flush()?;
     Ok(())
 }

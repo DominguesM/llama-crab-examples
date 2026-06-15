@@ -172,6 +172,13 @@ embedding the loader into your own code).
   builds are cached.
 * **First vision run is slow** — `mmproj` for LFM2.5-VL is ~340 MB.
   Subsequent runs reuse the HF cache.
+* **`embeddings` and `embedding_search` crash on a pure BertModel**
+  (e.g. `CompendiumLabs/bge-small-en-v1.5-gguf`) — known segfault
+  inside `llama_encode` on `llama-crab-sys 0.1.300` /
+  `llama-crab 0.1.6`. The default models are `nomic-embed-text-v1.5`
+  variants that do not hit the bug. Override with a
+  `BertForSequenceClassification` GGUF (e.g. the one used by
+  `rerank`) to confirm `Llama::embed` itself works on your machine.
 
 ## Adding a new example
 
