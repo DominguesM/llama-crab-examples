@@ -1,190 +1,177 @@
 # `llama-crab` examples
 
 A collection of self-contained programs that demonstrate every public
-feature of the `llama-crab` library. Each example lives in its own
-Cargo crate (one `[[bin]]` per crate) so you can copy-paste the parts
-you need into your own project without dragging in the rest.
+feature of the [`llama-crab`](https://crates.io/crates/llama-crab)
+library. Each example lives in its own Cargo crate (one `[[bin]]` per
+crate) so you can copy-paste the parts you need into your own project
+without dragging in the rest.
 
-## TL;DR — one-command run
+The examples target **`llama-crab` 0.1.6** and rely on the
+`hf-hub` cargo feature, which is now part of the default build
+(see the [CHANGELOG](https://github.com/DominguesM/llama-crab/blob/main/CHANGELOG.md)).
+This means each example points at a Hugging Face repository directly
+in its source code — `Llama::load` resolves the repo id, downloads
+the GGUF on first run and caches it under
+`~/.cache/huggingface/hub` (or `$HF_HOME/hub`).
 
-The repo ships with a thin `run.sh` wrapper that downloads the model
-required by the example (if missing) and then builds + runs it:
+## TL;DR — run an example
 
 ```bash
-./run.sh quickstart            # 0.5B text-only model
-./run.sh stateful_chat         # interactive multi-turn REPL
-./run.sh embedding_search      # BGE-small + cosine ranking
-./run.sh vision gemma4         # Gemma 4 text + image
-./run.sh vision lfm-vl         # LFM2.5-VL 1.6B text + image
-./run.sh lfm_vl                # REPL against the LFM VL model
-./run.sh server_lfm            # llama-crab-server w/ LFM2.5-VL
-./run.sh tauri_chat_lfm        # Tauri chat app w/ automatic download progress
-./run.sh multimodal_http       # mtmd-enabled HTTP chat server
-./run.sh rerank                # HTTP reranking server
-./run.sh tools                 # function-calling demo
-./run.sh tool_calls_qwen       # Qwen tool-call demo alias
-./run.sh structured            # JSON-schema grammar
+cargo run --release --bin quickstart
 ```
 
-If the model is already in `./models/` the download is a no-op.
-
-Without an example name the script prints a list of everything it knows.
+The first run downloads `qwen2.5-0.5b-instruct-q4_k_m.gguf`
+(~400 MB) and compiles `llama-crab-sys` (≈ 3 min on a 16-core
+machine). Subsequent runs only rebuild the example crate and re-use
+the cached GGUF.
 
 ## Directory layout
 
 ```
 .
-├── run.sh                       # one-shot download + run wrapper
 ├── README.md                    # this file
+├── Cargo.toml                   # workspace (llama-crab = 0.1.6)
+│
 ├── quickstart/                  # smallest end-to-end demo (text only)
 ├── streaming/                   # high-level token-by-token output
 ├── stateful_chat/               # interactive multi-turn chat REPL
-├── embedding_search/            # cosine-similarity semantic search
-│
-├── simple/                      # one-shot text completion
 ├── chat/                        # one-shot chat completion
-├── embeddings/                  # raw embedding extraction
-├── reranker/                    # embedding-based ranking demo
-├── speculative/                 # speculative decoding
+├── simple/                      # one-shot text completion
+├── structured/                  # JSON-schema grammar-constrained decoding
+├── speculative/                 # prompt-lookup speculative drafting
 ├── tools/                       # function-calling + tool parser
-├── structured/                  # JSON-schema constrained decoding
-├── mtmd/                        # multimodal (vision) via mtmd.h
+├── embeddings/                  # raw embedding extraction
+├── embedding_search/            # BGE-small + cosine ranking
+├── reranker/                    # embedding-based cross-encoder reranking
+├── mtmd/                        # multimodal (vision) via raw mtmd.h
 ├── vision/                      # vision via the high-level API
 ├── lfm_vl_vision/               # LFM2.5-VL multimodal REPL
-├── server_lfm/                  # llama-crab-server wired for LFM2.5-VL
-└── tauri-chat-lfm/              # one-page Tauri chat app for LFM2.5 350M
+├── server_lfm/                  # launcher for llama-crab-server w/ LFM2.5-VL
+└── tauri-chat-lfm/              # Tauri 2 chat app for LFM2.5 350M
 ```
+
+Each example is a self-contained crate: it has its own `README.md`,
+its own `Cargo.toml` and its own `src/main.rs`. The README inside
+each folder is the source of truth for that example's CLI, model
+choice and behaviour.
 
 ## Per-example guide
 
-| Example              | Model                                  | Size  | What it shows |
-| -------------------- | -------------------------------------- | ----- | ------------- |
-| `quickstart`         | `Qwen/Qwen2.5-0.5B-Instruct-GGUF`      | ~400 MB | Load → tokenize → complete → chat → FIM |
-| `streaming`          | same as `quickstart`                   | ~400 MB | High-level token-by-token output |
-| `stateful_chat`      | same as `quickstart`                   | ~400 MB | REPL with growing history, `/clear`, `/save` |
-| `embedding_search`   | `CompendiumLabs/bge-small-en-v1.5-gguf` | ~30 MB | L2-normalized embeddings + cosine ranking |
-| `simple`             | any text GGUF                          | varies | Low-level decode loop with custom sampler chain |
-| `chat`               | instruct-tuned GGUF                    | varies | Built-in chat templates + `BuiltinTemplate::ChatML` |
-| `embeddings`         | an embedding GGUF                      | varies | `embed()`, L2 normalize, raw `llama_get_embeddings` |
-| `reranker`           | an embedding GGUF                      | varies | embedding cosine ranking |
-| `speculative`        | draft + target GGUF                    | varies | `prompt-lookup` and small-model draft decoding |
-| `tools`              | a tool-aware instruct GGUF             | varies | `ToolDefinition` + 5 `ToolParser` formats |
-| `structured`         | any text GGUF                          | varies | `json_schema_grammar()` + `Sampler::grammar` |
-| `mtmd`               | `lmstudio-community/gemma-4-E4B-it-GGUF` | ~5 GB | Raw `mtmd.h` API: bitmap → chunks → eval |
-| `vision`             | same model (or `LFM2.5-VL-1.6B`)       | ~5 GB | High-level `MtmdContext` API |
-| `lfm_vl`             | `unsloth/LFM2.5-VL-1.6B-GGUF`          | ~1 GB | LFM2.5-VL 1.6B multimodal REPL |
-| `server_lfm`         | `unsloth/LFM2.5-VL-1.6B-GGUF`          | ~1 GB | Boots `llama-crab-server` pre-wired for LFM2.5-VL |
-| `tauri_chat_lfm`     | `LiquidAI/LFM2.5-350M-GGUF`            | ~229 MB | One-page Tauri chat app with automatic download progress |
-| `multimodal_http`    | same as `server_lfm`                   | ~1 GB | Boots `llama-crab-server --mmproj ...` |
-| `rerank`             | `turingevo/bge-reranker-base-Q4_K_M-GGUF` | varies | Boots `llama-crab-server --reranking --pooling rank` |
+| Example | Default model (Hugging Face repo / file) | Size | What it shows |
+| --- | --- | --- | --- |
+| `quickstart` | `Qwen/Qwen2.5-0.5B-Instruct-GGUF` / `qwen2.5-0.5b-instruct-q4_k_m.gguf` | ~400 MB | Load → tokenize → complete → chat → FIM |
+| `streaming` | same as `quickstart` | ~400 MB | High-level `create_completion_stream` |
+| `stateful_chat` | same as `quickstart` | ~400 MB | REPL with growing history, `/clear`, `/save` |
+| `chat` | same as `quickstart` | ~400 MB | One-shot chat + `BuiltinTemplate::ChatMl` |
+| `simple` | same as `quickstart` | ~400 MB | One-shot `create_completion` |
+| `structured` | same as `quickstart` | ~400 MB | `json_schema_grammar()` + grammar sampler |
+| `speculative` | same as `quickstart` | ~400 MB | `PromptLookupDecoding` drafting |
+| `tools` | same as `quickstart` | ~400 MB | Function-calling + JSON extraction |
+| `embeddings` | `CompendiumLabs/bge-small-en-v1.5-gguf` / `bge-small-en-v1.5-q4_k_m.gguf` | ~30 MB | L2-normalized embedding + raw vector preview |
+| `embedding_search` | same as `embeddings` | ~30 MB | Embed + cosine ranking over a fixed corpus |
+| `reranker` | `turingevo/bge-reranker-base-Q4_K_M-GGUF` / `bge-reranker-base-q4_k_m.gguf` | ~220 MB | `Llama::rerank` over a short list |
+| `mtmd` | `unsloth/LFM2.5-VL-1.6B-GGUF` / `LFM2.5-VL-1.6B-Q4_K_M.gguf` + `mmproj-BF16.gguf` | ~1.4 GB | Raw `mtmd.h` API: bitmap → chunks → eval |
+| `vision` | same as `mtmd` | ~1.4 GB | High-level `MtmdContext` API |
+| `lfm_vl_vision` | same as `mtmd` | ~1.4 GB | LFM2.5-VL multimodal REPL |
+| `server_lfm` | same as `mtmd` | ~1.4 GB | Spawns `llama-crab-server` with the resolved model |
+| `tauri_chat_lfm` | `LiquidAI/LFM2.5-350M-GGUF` / `LFM2.5-350M-Q4_K_M.gguf` | ~229 MB | Tauri 2 chat app with download progress |
 
-The two vision examples both need a vision-language GGUF **and** its
-`mmproj-*.gguf` projector file. `download_models.sh` downloads both.
-The `tauri_chat_lfm` example is different: the Tauri app downloads its
-fixed LFM2.5 350M GGUF on first use and shows download progress
-(`progresso do download`) in the app window.
-
-The Tauri example uses the published `@llama-crab/tauri` npm package and
-`tauri-plugin-llama-crab` crate at `0.1.300`. Run it after those packages are
-available in npm/crates.io for that version.
+The two vision example families both need a vision-language GGUF
+**and** its `mmproj` projector. The text side is downloaded through
+`llama-crab`'s `hf-hub` integration; the `mmproj` side is fetched
+through a small `hf-hub` helper in each example.
 
 ## Running an example by hand
 
-The convenience script does three things:
+Every example exposes a `[[bin]]` named after the example folder. The
+default arguments are baked into the source — running
+`cargo run --release --bin <name>` works out of the box. CLI
+arguments, when present, follow this convention:
 
-1. Resolves which model the example needs.
-2. Calls `./scripts/download_models.sh <target>` (idempotent — skips files already on disk).
-3. Calls `cargo run --release --bin <name>`.
-
-You can replicate the same steps manually:
-
-```bash
-# 1. Download a model (only the first time).
-./scripts/download_models.sh smol        # text-only models
-./scripts/download_models.sh gemma4      # text + mmproj
-./scripts/download_models.sh bge         # embeddings
-./scripts/download_models.sh bge-reranker # rerank server
-./scripts/download_models.sh test-image  # synthetic PNG fixture
-
-# 2. Run the example.
-cargo run --release --bin run_quickstart
-cargo run --release --bin run_streaming
-cargo run --release --bin run_chat
-cargo run --release --bin run_embeddings
+```
+cargo run --release --bin <name> -- \
+    <hf_repo> <hf_filename> [extra args...]
 ```
 
-Available download targets (see `./scripts/download_models.sh all` for
-the full list):
+For vision examples, the second positional argument is the text
+filename and the third is the `mmproj` filename:
 
-| Target        | Repo                                            | Files |
-| ------------- | ----------------------------------------------- | ----- |
-| `smol`        | `Qwen/Qwen2.5-0.5B-Instruct-GGUF`               | 1 × GGUF |
-| `gemma4`      | `lmstudio-community/gemma-4-E4B-it-GGUF`        | 1 × text GGUF + 1 × mmproj GGUF |
-| `lfm-vl`      | `unsloth/LFM2.5-VL-1.6B-GGUF`                   | 1 × text GGUF + 1 × mmproj GGUF |
-| `bge`         | `CompendiumLabs/bge-small-en-v1.5-gguf`         | 1 × GGUF |
-| `bge-reranker` | `turingevo/bge-reranker-base-Q4_K_M-GGUF`      | 1 × GGUF |
-| `test-image`  | (synthetic, no download)                        | `tests/fixtures/test_image.png` |
-| `all`         | everything                                      | ~7 GB total |
+```
+cargo run --release --bin vision -- \
+    unsloth/LFM2.5-VL-1.6B-GGUF \
+    LFM2.5-VL-1.6B-Q4_K_M.gguf \
+    mmproj-BF16.gguf
+```
 
 ## Using a different model
 
-Every example accepts the GGUF path as the **first** positional
-argument. The default is whatever the example's `run.sh` target
-downloads, so the simplest override is:
+Any HF repo id that contains a `.gguf` can be used. If the repo
+contains multiple `.gguf` files you must pass the filename with the
+second positional argument; the auto-pick path refuses to guess
+(there is a clear error in that case).
+
+For local files, pass the path instead of the repo id — `Llama::load`
+auto-detects that the path exists on disk and skips the HF download.
+
+## Server example
+
+`server_lfm` is the only example that does not compile a self-contained
+Rust binary. It resolves the text and `mmproj` GGUFs through HF Hub
+and then spawns the published `llama-crab-server` HTTP binary. Install
+the server once with:
 
 ```bash
-cargo run --release --bin run_quickstart -- models/llama-3.2-1b-instruct-q4_k_m.gguf
+cargo install llama-crab-server --version 0.1.6 --features mtmd --force
 ```
 
-For vision examples, the first positional argument of the binary is
-the text GGUF and the second is the `mmproj` GGUF:
+Then `cargo run --release --bin server_lfm` brings it up against
+LFM2.5-VL 1.6B with the resolved paths.
+
+## Tauri example
+
+`tauri-chat-lfm` is a Tauri 2 desktop chat app. It uses `pnpm` and
+the `tauri` CLI:
 
 ```bash
-cargo run --release --bin run_mtmd -- \
-  models/gemma-4-E4B-it-Q4_K_M.gguf \
-  models/mmproj-gemma-4-E4B-it-BF16.gguf \
-  tests/fixtures/test_image.png "What is in this image?"
+cd tauri-chat-lfm
+pnpm install
+pnpm tauri dev
 ```
 
-## Downloading with `curl` instead of `hf`
+The Rust side resolves the LFM 350M GGUF on first launch and streams
+download progress to the renderer through an IPC channel. The
+`@llama-crab/tauri` client then loads the resolved model into the
+plugin and streams chat completions.
 
-`download_models.sh` prefers `huggingface-cli` (`hf download ...`) but
-falls back to `curl` automatically. To force curl-only, install
-nothing — just run the script. To force the HF CLI:
+## Hugging Face authentication
 
-```bash
-pip install --upgrade huggingface_hub
-hf auth login   # optional, only needed for gated repos
-```
+Set `HF_TOKEN` (or use `hf auth login` before running the example)
+to access private or gated repos. The `hf-hub` feature of `llama-crab`
+and the `hf-hub` crate used directly in the vision examples both
+read `HF_TOKEN` from the environment via `ApiBuilder::from_env()`.
+
+To point at an HF mirror, set `HF_ENDPOINT=https://hf-mirror.com`
+(or use the `--hf-endpoint` builder on `RealHfDownloader` when
+embedding the loader into your own code).
 
 ## Troubleshooting
 
-* **`model not found`** — The example is looking for a file in `./models/`.
-  Run `./scripts/download_models.sh <target>` or pass the path explicitly.
-* **`failed to allocate context`** — The model needs more memory than is
-  available. Try a smaller quant (`Q4_K_M` → `Q3_K_M` → `Q2_K`) or
-  reduce `n_ctx` / `n_gpu_layers`.
-* **`avx2 not detected`** on older CPUs — set
-  `LLAMA_NO_AVX2=1 cargo run --release …` (or the equivalent llama.cpp
-  flag) before running the example.
-* **First run is slow** — the build of the `llama-crab-sys` crate
-  compiles all 17 llama.cpp backends (~3 min on a 16-core machine).
-  Subsequent runs are cached.
-* **The first download is large** — `gemma4` is ~5 GB. Start with
-  `smol` (~400 MB) and the `quickstart` example to confirm everything
-  works.
-
-## Upstream integration tests
-
-The upstream `llama-crab` crate repository contains the same examples in
-test form:
-
-* `crates/llama-crab/tests/gemma4_text.rs`        — text-only generation, no vision.
-* `crates/llama-crab/tests/gemma4_vision.rs`      — Gemma 4 + mmproj + test image.
-* `crates/llama-crab/tests/lfm_vl_vision.rs`      — LFM2.5-VL + mmproj + test image.
-
-They skip cleanly when the model is not present, so a fresh clone can
-build the test binary without owning the model.
+* **`hf-hub feature is disabled`** — you are building with
+  `--no-default-features` or a custom feature set that drops
+  `hf-hub`. The workspace's `Cargo.toml` enables it by default;
+  use `cargo build` without feature overrides.
+* **`ambiguous: N gguf files in repo ...`** — the HF repo has more
+  than one `.gguf` and the example was started without
+  `with_hf_filename`. Pass the filename as the second positional
+  argument.
+* **`failed to allocate context`** — the model needs more memory than
+  is available. Try a smaller quant (`Q4_K_M` → `Q3_K_M` → `Q2_K`)
+  or reduce `n_ctx` / `n_gpu_layers`.
+* **First build is slow** — `llama-crab-sys` compiles all 17
+  llama.cpp backends (~3 min on a 16-core machine). Subsequent
+  builds are cached.
+* **First vision run is slow** — `mmproj` for LFM2.5-VL is ~340 MB.
+  Subsequent runs reuse the HF cache.
 
 ## Adding a new example
 
@@ -200,7 +187,7 @@ rust-version.workspace = true
 publish = false
 
 [[bin]]
-name = "run_my_example"
+name = "my_example"
 path = "src/main.rs"
 
 [dependencies]
@@ -213,13 +200,20 @@ anyhow = "1"
 use anyhow::Result;
 use llama_crab::{Llama, LlamaParams};
 
+const HF_REPO: &str = "Qwen/Qwen2.5-0.5B-Instruct-GGUF";
+const HF_FILE: &str = "qwen2.5-0.5b-instruct-q4_k_m.gguf";
+
 fn main() -> Result<()> {
-    let mut llama = Llama::load(LlamaParams::new("models/your.gguf"))?;
+    let mut llama = Llama::load(
+        LlamaParams::new(HF_REPO)
+            .with_hf_filename(HF_FILE)
+            .with_n_ctx(2048),
+    )?;
     let resp = llama.create_completion("Hello!", 32)?;
     print!("{}", resp.text);
     Ok(())
 }
 ```
 
-Then add `my_example` to the `members = [...]` list in root `Cargo.toml`
-and a row to the table above.
+Add `my_example` to the `members = [...]` list in the root
+`Cargo.toml` and a row to the table above.

@@ -8,11 +8,11 @@ repository.workspace = true
 publish = false
 
 [[bin]]
-name = "run_lfm_vl"
+name = "lfm_vl_vision"
 path = "src/main.rs"
 
 [dependencies]
 llama-crab = { workspace = true, features = ["mtmd"] }
+hf-hub.workspace = true
 anyhow = "1"
-tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }

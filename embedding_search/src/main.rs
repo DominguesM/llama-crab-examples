@@ -1,27 +1,25 @@
-//! `embeddings` — compute sentence embeddings with a BGE model.
+//! `embedding_search` — semantic search over a small fixed corpus.
+//!
+//! Embeds the query + a 4-document corpus with `bge-small-en-v1.5`
+//! and ranks the documents by cosine similarity.
 //!
 //! Run with:
 //!
 //! ```bash
-//! ./examples/run.sh embeddings
+//! cargo run --release --bin embedding_search
 //! ```
 //!
-//! or after downloading the BGE-small model directly:
-//!
-//! ```bash
-//! ./scripts/download_models.sh bge
-//! cargo run --release --bin run_embeddings
-//! ```
-//!
-//! The first positional argument selects the GGUF path (default
-//! `models/bge-small-en-v1.5-q4_k_m.gguf`). The second positional
-//! argument (or `LLAMA_CRAB_QUERY` env var) selects the query.
+//! Override the query as the third positional argument, or via
+//! `LLAMA_CRAB_QUERY` env var.
 
 use anyhow::{Context, Result};
 use llama_crab::context::params::PoolingType;
-use llama_crab::sampling::LlamaSampler;
 use llama_crab::{Llama, LlamaParams};
 use std::time::Instant;
+
+const DEFAULT_HF_REPO: &str = "nomic-ai/nomic-embed-text-v1.5-GGUF";
+const DEFAULT_HF_FILE: &str = "nomic-embed-text-v1.5.Q4_K_M.gguf";
+const DEFAULT_QUERY: &str = "What programming language is safest?";
 
 fn cosine(a: &[f32], b: &[f32]) -> f32 {
     let dot: f32 = a.iter().zip(b.iter()).map(|(x, y)| x * y).sum();
@@ -36,27 +34,32 @@ fn cosine(a: &[f32], b: &[f32]) -> f32 {
 
 fn main() -> Result<()> {
     tracing_subscriber::fmt::init();
-    let model = std::env::args()
-        .nth(1)
-        .unwrap_or_else(|| "models/bge-small-en-v1.5-q4_k_m.gguf".to_string());
-    let query = std::env::args()
-        .nth(2)
+
+    let mut args = std::env::args().skip(1);
+    let hf_repo = args
+        .next()
+        .unwrap_or_else(|| DEFAULT_HF_REPO.to_string());
+    let hf_filename = args.next().unwrap_or_else(|| DEFAULT_HF_FILE.to_string());
+    let query = args
+        .next()
         .or_else(|| std::env::var("LLAMA_CRAB_QUERY").ok())
-        .unwrap_or_else(|| "What programming language is safest?".to_string());
+        .unwrap_or_else(|| DEFAULT_QUERY.to_string());
 
     eprintln!("🦀 llama-crab embeddings example");
-    eprintln!("   model : {model}");
-    eprintln!("   query : {query}");
+    eprintln!("   hf_repo    : {hf_repo}");
+    eprintln!("   hf_filename: {hf_filename}");
+    eprintln!("   query      : {query}");
     eprintln!();
 
     let start = Instant::now();
     let mut llama = Llama::load(
-        LlamaParams::new(&model)
+        LlamaParams::new(&hf_repo)
+            .with_hf_filename(&hf_filename)
             .with_n_ctx(512)
             .with_embeddings(true)
             .with_pooling_type(PoolingType::Cls),
     )
-    .with_context(|| format!("failed to load {model}"))?;
+    .with_context(|| format!("failed to load {hf_repo}/{hf_filename}"))?;
     eprintln!("✓ model loaded in {:.2}s", start.elapsed().as_secs_f64());
 
     // Tiny fixed corpus.
@@ -98,7 +101,5 @@ fn main() -> Result<()> {
     println!("Top match: {} (cosine = {:.3})", scored[0].0, scored[0].1);
     let top = corpus.iter().find(|(i, _)| *i == scored[0].0).unwrap().1;
     println!("  > {top}");
-    // Keep the import live for `cargo check`.
-    let _ = std::mem::size_of::<LlamaSampler>();
     Ok(())
 }

@@ -1,22 +1,14 @@
-//! `chat` — interactive multi-turn chat that grows a conversation
-//! history token by token.
+//! `stateful_chat` — interactive multi-turn chat REPL.
 //!
 //! The model is loaded once; each user turn appends the previous
 //! assistant reply to the history and asks for a new one. The history
 //! is **not** truncated between turns (the context size is the only
-//! limit) — this is the simplest possible persistent state.
+//! limit).
 //!
 //! Run with:
 //!
 //! ```bash
-//! ./examples/run.sh chat
-//! ```
-//!
-//! or directly with `cargo` after downloading the model:
-//!
-//! ```bash
-//! ./scripts/download_models.sh smol
-//! cargo run --release --bin run_chat
+//! cargo run --release --bin stateful_chat
 //! ```
 //!
 //! Commands while running:
@@ -32,20 +24,32 @@ use llama_crab::{Llama, LlamaParams, Role};
 use std::io::{self, BufRead, Write};
 use std::time::Instant;
 
+const DEFAULT_HF_REPO: &str = "Qwen/Qwen2.5-0.5B-Instruct-GGUF";
+const DEFAULT_HF_FILE: &str = "qwen2.5-0.5b-instruct-q4_k_m.gguf";
+
 fn main() -> Result<()> {
     tracing_subscriber::fmt::init();
-    let model = std::env::args()
-        .nth(1)
-        .unwrap_or_else(|| "models/qwen2.5-0.5b-instruct-q4_k_m.gguf".to_string());
+
+    let mut args = std::env::args().skip(1);
+    let hf_repo = args
+        .next()
+        .unwrap_or_else(|| DEFAULT_HF_REPO.to_string());
+    let hf_filename = args.next().unwrap_or_else(|| DEFAULT_HF_FILE.to_string());
 
     eprintln!("🦀 llama-crab interactive chat");
-    eprintln!("   model : {model}");
+    eprintln!("   hf_repo    : {hf_repo}");
+    eprintln!("   hf_filename: {hf_filename}");
     eprintln!("   commands: /exit  /clear  /save");
     eprintln!();
 
     let start = Instant::now();
-    let mut llama = Llama::load(LlamaParams::new(&model).with_n_ctx(4096).with_n_threads(4))
-        .with_context(|| format!("failed to load {model}"))?;
+    let mut llama = Llama::load(
+        LlamaParams::new(&hf_repo)
+            .with_hf_filename(&hf_filename)
+            .with_n_ctx(4096)
+            .with_n_threads(4),
+    )
+    .with_context(|| format!("failed to load {hf_repo}/{hf_filename}"))?;
     eprintln!(
         "✓ model loaded in {:.2}s  ({} layers)",
         start.elapsed().as_secs_f64(),

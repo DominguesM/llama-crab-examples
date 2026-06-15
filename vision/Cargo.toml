@@ -12,7 +12,9 @@ name = "vision"
 path = "src/main.rs"
 
 [dependencies]
+# The `mtmd` feature pulls in llama.cpp's mtmd backend so the example
+# can do multimodal inference.
 llama-crab = { workspace = true, features = ["mtmd"] }
+hf-hub.workspace = true
 anyhow = "1"
-tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }

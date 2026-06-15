@@ -1,38 +1,33 @@
-# tauri-chat-lfm
+# `tauri-chat-lfm`
 
-Exemplo Tauri v2 simples para conversar com um unico modelo local usando `tauri-plugin-llama-crab` e `@llama-crab/tauri`.
+A minimal Tauri 2 desktop chat app that runs **Liquid AI LFM2.5 350M**
+locally through `tauri-plugin-llama-crab`. The Rust side resolves the
+GGUF through Hugging Face Hub on first use and streams a download
+progress to the renderer through an IPC channel. The renderer feeds
+the resolved path into the plugin's `load_model`.
 
-Modelo fixo:
+## Model
 
-- Repositorio: `LiquidAI/LFM2.5-350M-GGUF`
-- Arquivo: `LFM2.5-350M-Q4_K_M.gguf`
+Default: `LiquidAI/LFM2.5-350M-GGUF` / `LFM2.5-350M-Q4_K_M.gguf`
+(~229 MB). Auto-downloaded on the first run.
 
-O app faz download automatico do modelo na primeira mensagem caso o arquivo ainda nao exista no diretorio local de dados da aplicacao. Durante essa primeira execucao, a tela mostra o progresso do download em MB e percentual quando o tamanho total estiver disponivel.
+## Run
 
-## Executar
-
-Na raiz do repositorio:
-
-```sh
+```bash
+cd tauri-chat-lfm
 pnpm install
-pnpm --filter tauri-chat-lfm tauri dev
+pnpm tauri dev
 ```
 
-Tambem e possivel executar pelo wrapper geral de exemplos:
+Build a release bundle with `pnpm tauri build`.
 
-```sh
-./run.sh tauri_chat_lfm
-```
+## What it shows
 
-O primeiro envio pode demorar porque o app baixa aproximadamente 229 MB do Hugging Face antes de carregar o modelo.
-
-## Interface
-
-A tela tem apenas:
-
-- campo de mensagem
-- botao `Enviar`
-- botao `Limpar`
-- area da resposta atual
-
-O exemplo nao mantem historico de conversa. Cada envio usa somente a mensagem digitada no momento.
+- Tauri 2 + Vite + TypeScript skeleton.
+- A `tauri::command` that resolves a HF repo file and streams
+  progress through an IPC `Channel<DownloadProgress>`.
+- `tauri-plugin-llama-crab`'s `load_model` (the plugin enables the
+  `hf-hub` feature of `llama-crab` by default, so future versions
+  can pass a HF repo id directly).
+- A streaming chat completion with the `LlamaCrabTauri` client and
+  a one-page HTML/CSS/TS UI.

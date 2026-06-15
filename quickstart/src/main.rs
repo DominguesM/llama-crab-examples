@@ -2,17 +2,25 @@
 //!
 //! Loads a small GGUF, tokenizes a prompt, runs a single completion
 //! and prints the result. Designed to be the first program a new
-//! user runs. Run with the convenience script:
+//! user runs.
+//!
+//! By default the example points at the Qwen2.5 0.5B Instruct GGUF on
+//! Hugging Face Hub; the `hf-hub` feature of `llama-crab` downloads it
+//! to the HF cache on the first run and reuses it on subsequent runs.
+//!
+//! Run with:
 //!
 //! ```bash
-//! ./examples/run.sh quickstart
+//! cargo run --release --bin quickstart
 //! ```
 //!
-//! or directly with `cargo` after downloading the model:
+//! To pin a different model, pass its HF repo id as the first argument
+//! and the GGUF filename as the second:
 //!
 //! ```bash
-//! ./scripts/download_models.sh smol
-//! cargo run --release --bin run_quickstart
+//! cargo run --release --bin quickstart -- \
+//!     TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF \
+//!     tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf
 //! ```
 
 use anyhow::{Context, Result};
@@ -21,19 +29,32 @@ use llama_crab::{Llama, LlamaParams, Role};
 use std::io::{self, Write};
 use std::time::Instant;
 
+const DEFAULT_HF_REPO: &str = "Qwen/Qwen2.5-0.5B-Instruct-GGUF";
+const DEFAULT_HF_FILE: &str = "qwen2.5-0.5b-instruct-q4_k_m.gguf";
+
 fn main() -> Result<()> {
     tracing_subscriber::fmt::init();
-    let model = std::env::args()
-        .nth(1)
-        .unwrap_or_else(|| "models/qwen2.5-0.5b-instruct-q4_k_m.gguf".to_string());
+
+    // CLI: <hf_repo> <hf_filename> — both optional.
+    let mut args = std::env::args().skip(1);
+    let hf_repo = args
+        .next()
+        .unwrap_or_else(|| DEFAULT_HF_REPO.to_string());
+    let hf_filename = args.next().unwrap_or_else(|| DEFAULT_HF_FILE.to_string());
 
     eprintln!("🦀 llama-crab quickstart");
-    eprintln!("   model : {model}");
+    eprintln!("   hf_repo    : {hf_repo}");
+    eprintln!("   hf_filename: {hf_filename}");
     eprintln!();
 
     let start = Instant::now();
-    let mut llama = Llama::load(LlamaParams::new(&model).with_n_ctx(2048).with_n_threads(4))
-        .with_context(|| format!("failed to load {model}"))?;
+    let mut llama = Llama::load(
+        LlamaParams::new(&hf_repo)
+            .with_hf_filename(&hf_filename)
+            .with_n_ctx(2048)
+            .with_n_threads(4),
+    )
+    .with_context(|| format!("failed to load {hf_repo}/{hf_filename}"))?;
     eprintln!(
         "✓ model loaded in {:.2}s  ({} layers, vocab={})",
         start.elapsed().as_secs_f64(),

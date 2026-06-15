@@ -8,7 +8,13 @@ repository.workspace = true
 publish = false
 
 [[bin]]
-name = "run_server_lfm"
+name = "server_lfm"
 path = "src/main.rs"
 
 [dependencies]
+# `llama-crab-server` is a binary-only crate, so we spawn the
+# installed executable via `Command`. We only need `hf-hub` to
+# resolve the GGUF paths and `anyhow` for error plumbing.
+hf-hub.workspace = true
+anyhow = "1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
