@@ -6,7 +6,7 @@ library. Each example lives in its own Cargo crate (one `[[bin]]` per
 crate) so you can copy-paste the parts you need into your own project
 without dragging in the rest.
 
-The examples target **`llama-crab` 0.1.6** and rely on the
+The examples target **`llama-crab` 0.1.8** and rely on the
 `hf-hub` cargo feature, which is now part of the default build
 (see the [CHANGELOG](https://github.com/DominguesM/llama-crab/blob/main/CHANGELOG.md)).
 This means each example points at a Hugging Face repository directly
@@ -30,7 +30,7 @@ the cached GGUF.
 ```
 .
 ├── README.md                    # this file
-├── Cargo.toml                   # workspace (llama-crab = 0.1.6)
+├── Cargo.toml                   # workspace (llama-crab = 0.1.8)
 │
 ├── quickstart/                  # smallest end-to-end demo (text only)
 ├── streaming/                   # high-level token-by-token output
@@ -121,7 +121,7 @@ and then spawns the published `llama-crab-server` HTTP binary. Install
 the server once with:
 
 ```bash
-cargo install llama-crab-server --version 0.1.6 --features mtmd --force
+cargo install llama-crab-server --version 0.1.8 --features mtmd --force
 ```
 
 Then `cargo run --release --bin server_lfm` brings it up against

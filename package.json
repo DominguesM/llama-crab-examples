@@ -6,5 +6,10 @@
     "tauri:dev": "pnpm --filter tauri-chat-lfm tauri dev",
     "tauri:build": "pnpm --filter tauri-chat-lfm build",
     "smoke": "bash tests/examples_repo_smoke.sh"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
   }
 }

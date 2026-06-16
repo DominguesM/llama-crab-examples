@@ -17,6 +17,10 @@ members = [
     "lfm_vl_vision",
     "server_lfm",
 ]
+exclude = [
+    "tauri-chat-lfm/src-tauri",
+]
+
 
 [workspace.package]
 version = "0.2.0"
@@ -36,7 +40,7 @@ repository = "https://github.com/DominguesM/llama-crab-examples"
 #
 # The vision examples (`mtmd`, `vision`, `lfm_vl_vision`) layer
 # `features = ["mtmd"]` on top to enable multimodal inference.
-llama-crab = { version = "0.1.6", default-features = false, features = ["openmp", "hf-hub", "common"] }
+llama-crab = { version = "0.1.8", default-features = false, features = ["openmp", "hf-hub", "common"] }
 
 # Direct `hf-hub` dep used to download the mmproj projector files for
 # the vision examples — `llama-crab` only resolves the text GGUF

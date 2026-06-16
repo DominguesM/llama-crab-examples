@@ -1,2 +1,4 @@
 packages:
   - "tauri-chat-lfm"
+allowBuilds:
+  esbuild: true
